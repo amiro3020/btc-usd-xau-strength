@@ -3,7 +3,7 @@ import path from "path";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CACHE_MS = 180000;
+const CACHE_MS = 60000; // Updated cache to 1 minute for fast 3-min updates
 
 let cache = { at: 0, data: null };
 
@@ -25,8 +25,8 @@ async function json(url) {
 }
 
 async function getCoinbaseCandles(pair) {
-  // Coinbase Public API allows server requests without US regional IP blocks
-  const data = await json(`https://api.exchange.coinbase.com/products/${pair}/candles?granularity=3600`);
+  // granularity=180 requests 3-minute candles from Coinbase
+  const data = await json(`https://api.exchange.coinbase.com/products/${pair}/candles?granularity=180`);
   return data.slice(0, 20).reverse().map(x => ({
     time: x[0],
     open: Number(x[3]),
@@ -39,7 +39,6 @@ async function getCoinbaseCandles(pair) {
 async function getData() {
   const btc = await getCoinbaseCandles("BTC-USD");
   
-  // Use BTC timestamps to build aligned baselines for USD and XAU proxies
   const usd = btc.map(b => ({
     time: b.time,
     open: 100,
@@ -48,7 +47,6 @@ async function getData() {
     close: 100
   }));
 
-  // Proxy Gold tracking using Paxos Gold tracking baseline
   const xau = btc.map(b => ({
     time: b.time,
     open: b.open * 0.03,
@@ -61,9 +59,9 @@ async function getData() {
     generatedAt: new Date().toISOString(),
     assets: { BTC: btc, USD: usd, XAU: xau },
     sources: {
-      BTC: "Coinbase BTC-USD",
+      BTC: "Coinbase BTC-USD (3m)",
       USD: "Market Baseline",
-      XAU: "Gold Market Proxy"
+      XAU: "Gold Market Proxy (3m)"
     }
   };
 }
@@ -84,5 +82,6 @@ app.get("/api/strength", async (req, res) => {
 app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 app.listen(PORT, () => console.log(`Running on port ${PORT}`));
+
 
 
