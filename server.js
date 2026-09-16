@@ -1,9 +1,10 @@
+
 import express from "express";
 import path from "path";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CACHE_MS = 60000; // Updated cache to 1 minute for fast 3-min updates
+const CACHE_MS = 60000; // 1-minute cache for fast refreshes
 
 let cache = { at: 0, data: null };
 
@@ -25,8 +26,8 @@ async function json(url) {
 }
 
 async function getCoinbaseCandles(pair) {
-  // granularity=180 requests 3-minute candles from Coinbase
-  const data = await json(`https://api.exchange.coinbase.com/products/${pair}/candles?granularity=180`);
+  // granularity=300 fetches 5-minute candles
+  const data = await json(`https://api.exchange.coinbase.com/products/${pair}/candles?granularity=300`);
   return data.slice(0, 20).reverse().map(x => ({
     time: x[0],
     open: Number(x[3]),
@@ -38,7 +39,7 @@ async function getCoinbaseCandles(pair) {
 
 async function getData() {
   const btc = await getCoinbaseCandles("BTC-USD");
-  
+
   const usd = btc.map(b => ({
     time: b.time,
     open: 100,
@@ -59,9 +60,9 @@ async function getData() {
     generatedAt: new Date().toISOString(),
     assets: { BTC: btc, USD: usd, XAU: xau },
     sources: {
-      BTC: "Coinbase BTC-USD (3m)",
+      BTC: "Coinbase BTC-USD (5m)",
       USD: "Market Baseline",
-      XAU: "Gold Market Proxy (3m)"
+      XAU: "Gold Market Proxy (5m)"
     }
   };
 }
